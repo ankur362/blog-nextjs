@@ -1,20 +1,12 @@
-
 pipeline {
     agent any
 
-    options {
-        disableConcurrentBuilds(abortPrevious: true)
-        timestamps()
-    }
-
-    triggers {
-        githubPush()
-    }
-
     environment {
-        IMAGE_NAME = "my-next-js"
-        CONTAINER_NAME = "my-next-js"
-        PORT = "3000"
+        AWS_REGION = 'ap-south-1'
+        ECR_REGISTRY = '037063405906.dkr.ecr.ap-south-1.amazonaws.com'
+        ECR_REPOSITORY = 'my-next-js'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        IMAGE_NAME = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
     }
 
     stages {
@@ -28,96 +20,56 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    set -e
-
                     echo "Building Docker image..."
-
+                    
                     docker build \
-                        -t ${IMAGE_NAME}:${BUILD_NUMBER} \
-                        -t ${IMAGE_NAME}:latest \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \
                         .
-
-                    echo "Docker image built successfully."
                 '''
             }
         }
 
-        stage('Stop Existing Container') {
+        stage('Login to ECR') {
             steps {
                 sh '''
-                    echo "Stopping existing container..."
+                    echo "Logging in to AWS ECR..."
 
-                    docker stop ${CONTAINER_NAME} || true
-                    docker rm ${CONTAINER_NAME} || true
-
-                    echo "Existing container removed."
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login \
+                        --username AWS \
+                        --password-stdin ${ECR_REGISTRY}
                 '''
             }
         }
 
-        stage('Deploy') {
+        stage('Push Image to ECR') {
             steps {
                 sh '''
-                    set -e
+                    echo "Pushing image to ECR..."
 
-                    echo "Starting new container..."
-
-                    docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        --restart unless-stopped \
-                        -p ${PORT}:${PORT} \
-                        ${IMAGE_NAME}:latest
-
-                    echo "Container started successfully."
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
         }
 
-        stage('Health Check') {
+        stage('Deployment Info') {
             steps {
-                sh '''
-                    echo "Waiting for application to start..."
-
-                    sleep 10
-
-                    echo "Checking application..."
-
-                    curl -f http://localhost:${PORT} || {
-                        echo "Health check failed."
-                        docker logs ${CONTAINER_NAME}
-                        exit 1
-                    }
-
-                    echo "Application is healthy."
-                '''
-            }
-        }
-
-        stage('Cleanup') {
-            steps {
-                sh '''
-                    echo "Cleaning unused Docker images..."
-
-                    docker image prune -f
-
-                    echo "Cleanup completed."
-                '''
+                echo "======================================"
+                echo "Docker image pushed successfully!"
+                echo "Image: ${IMAGE_NAME}:${IMAGE_TAG}"
+                echo "Build Number: ${BUILD_NUMBER}"
+                echo "======================================"
             }
         }
     }
 
     post {
         success {
-            echo "Next.js deployment completed successfully."
+            echo 'Build and ECR push successful!'
         }
 
         failure {
-            echo "Next.js deployment failed."
-
-            sh '''
-                docker logs ${CONTAINER_NAME} || true
-            '''
+            echo 'Build or ECR push failed!'
         }
     }
 }
-
