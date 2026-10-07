@@ -1,6 +1,20 @@
-```groovy
 pipeline {
     agent any
+
+    options {
+        disableConcurrentBuilds(abortPrevious: true)
+        timestamps()
+    }
+
+    triggers {
+        githubPush()
+    }
+
+    environment {
+        IMAGE_NAME = "my-next-js"
+        CONTAINER_NAME = "my-next-js"
+        PORT = "3000"
+    }
 
     stages {
 
@@ -12,21 +26,52 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t my-nextjs-app:latest .'
+                sh '''
+                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Stop Existing Container') {
+            steps {
+                sh '''
+                    docker stop ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
+                '''
             }
         }
 
         stage('Deploy') {
             steps {
                 sh '''
-                    docker stop my-nextjs-app || true
-                    docker rm my-nextjs-app || true
-
                     docker run -d \
-                        --name my-nextjs-app \
+                        --name ${CONTAINER_NAME} \
                         --restart unless-stopped \
-                        -p 3000:3000 \
-                        my-nextjs-app:latest
+                        -p ${PORT}:${PORT} \
+                        ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                    sleep 10
+
+                    curl -f http://localhost:${PORT} || {
+                        echo "Health check failed"
+                        docker logs ${CONTAINER_NAME}
+                        exit 1
+                    }
+                '''
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                sh '''
+                    docker image prune -f
                 '''
             }
         }
@@ -34,12 +79,12 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment successful!'
+            echo "Next.js deployment successful!"
         }
 
         failure {
-            echo 'Deployment failed!'
+            echo "Next.js deployment failed!"
+            docker logs ${CONTAINER_NAME} || true
         }
     }
 }
-```
