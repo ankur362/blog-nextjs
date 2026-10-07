@@ -21,7 +21,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Building Docker image..."
-                    
+
                     docker build \
                         -t ${IMAGE_NAME}:${IMAGE_TAG} \
                         .
@@ -48,6 +48,16 @@ pipeline {
                     echo "Pushing image to ECR..."
 
                     docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Cleanup Local Docker Image') {
+            steps {
+                sh '''
+                    echo "Cleaning up local Docker image..."
+
+                    docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
                 '''
             }
         }
