@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { deletePost } from '../lib/db';
 
-export default function DeleteModal({ postId }) {
+export default function DeleteModal({ postId }: { postId: string | number }) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
