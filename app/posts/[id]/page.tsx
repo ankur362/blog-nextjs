@@ -1,26 +1,39 @@
-import { fetchPostById } from '@/app/lib/db';
-import DeleteModal from '@/app/components/DeleteModal';
-import Link from 'next/link';
+import { NextRequest, NextResponse } from 'next/server';
+import axios from 'axios';
 
-export default async function PostPage({ params }) {
-    const paramsAwaited = await params;
-    const post = await fetchPostById(paramsAwaited.id);
-  
-  if (!post) {
-    return <div>Post not found</div>;
+const API_URL = 'http://localhost:5000';
+
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
+
+export async function GET(_request: NextRequest, { params }: RouteContext) {
+  try {
+    const { id } = await params;
+    const response = await axios.get(`${API_URL}/posts/${id}`);
+    return NextResponse.json(response.data);
+  } catch (error) {
+    return NextResponse.json({ error: 'Post not found' }, { status: 404 });
   }
+}
 
-  return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl mb-4 flex gap-3"><p className="text-gray-600">Title:-</p>{post.title}</h1>
-      <p className=" mb-2 flex gap-2"><p className="text-gray-600">Author</p> {post.author}</p>
-      <div className="my-4 flex gap-2"><p className="text-gray-600">Content</p>{post.content}</div>
-      <div className="flex gap-2">
-        <Link href={`/posts/edit/${post.id}`} className="bg-yellow-500 p-2 rounded-lg w-[65px] text-center hover:bg-yellow-700">
-          Edit
-        </Link>
-        <DeleteModal postId={post.id} />
-      </div>
-    </div>
-  );
+export async function PUT(request: NextRequest, { params }: RouteContext) {
+  try {
+    const { id } = await params;
+    const postData = await request.json();
+    const response = await axios.put(`${API_URL}/posts/${id}`, postData);
+    return NextResponse.json(response.data);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update post' }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: NextRequest, { params }: RouteContext) {
+  try {
+    const { id } = await params;
+    await axios.delete(`${API_URL}/posts/${id}`);
+    return NextResponse.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
+  }
 }
