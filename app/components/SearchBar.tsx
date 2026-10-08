@@ -1,24 +1,25 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { Post } from "@/app/lib/db";
 
 export default function SearchBar() {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState<string>(searchParams.get("search") || "");
-  const [posts, setPosts] = useState<any[]>([]); // Replace 'any' with your post type if available
+  const [posts, setPosts] = useState<Post[]>([]);
   const router = useRouter();
 
   // Fetch posts from db.json
   useEffect(() => {
     const fetchPosts = async () => {
       const response = await fetch('/db.json'); // Update with the correct path
-      const data = await response.json();
+      const data = (await response.json()) as { posts?: Post[] };
       setPosts(data.posts || []); // Ensure posts is an array
     };
     fetchPosts();
   }, []);
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const query = search.trim() ? `?search=${encodeURIComponent(search)}` : "";
     router.push(`/${query}`);
@@ -52,7 +53,7 @@ export default function SearchBar() {
     <h2 className="text-xl font-semibold mb-2">{post.title}</h2>
     <p className="text-gray-700 mb-2">{post.content}</p>
     <p className="text-sm text-gray-500">Author: {post.author}</p>
-    <p className="text-sm text-gray-500">Published on: {new Date(post.createdAt).toLocaleDateString()}</p>
+    <p className="text-sm text-gray-500">Published on: {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : ''}</p>
   </div>
 ))}
       </div>
