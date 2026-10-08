@@ -1,5 +1,5 @@
 // Utility functions for data formatting, validation, and common operations
-export const formatDate = (date) => {
+export const formatDate = (date: string | number | Date) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -7,13 +7,19 @@ export const formatDate = (date) => {
     });
   };
   
-  export const truncateText = (text, maxLength = 150) => {
+  export const truncateText = (text: string, maxLength = 150) => {
     if (text.length <= maxLength) return text;
     return `${text.substring(0, maxLength).trim()}...`;
   };
+
+  type PostFields = {
+    title?: string;
+    author?: string;
+    content?: string;
+  };
   
-  export const validatePostData = (data) => {
-    const errors = {};
+  export const validatePostData = (data: PostFields) => {
+    const errors: Record<string, string> = {};
     
     if (!data.title?.trim()) {
       errors.title = 'Title is required';
@@ -33,7 +39,7 @@ export const formatDate = (date) => {
     };
   };
   
-  export const generateSlug = (title) => {
+  export const generateSlug = (title: string) => {
     return title
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
@@ -41,7 +47,7 @@ export const formatDate = (date) => {
       .trim();
   };
   
-  export const getPaginationInfo = (currentPage, totalPosts, postsPerPage) => {
+  export const getPaginationInfo = (currentPage: number, totalPosts: number, postsPerPage: number) => {
     const totalPages = Math.ceil(totalPosts / postsPerPage);
     const hasNextPage = currentPage < totalPages;
     const hasPrevPage = currentPage > 1;
@@ -55,26 +61,42 @@ export const formatDate = (date) => {
     };
   };
   
-  export const getSearchParams = (params) => {
+  export const getSearchParams = (params: Record<string, string | number | undefined | null>) => {
     const searchParams = new URLSearchParams();
     
     Object.entries(params).forEach(([key, value]) => {
-      if (value) searchParams.append(key, value);
+      if (value) searchParams.append(key, String(value));
     });
     
     return searchParams.toString();
   };
   
-  export const handleApiError = (error) => {
-    if (error.response) {
+  type ApiErrorLike = {
+    response?: {
+      data?: { message?: string };
+      status?: number;
+    };
+    message?: string;
+  };
+
+  export const handleApiError = (error: unknown) => {
+    if (typeof error === 'object' && error !== null && 'response' in error) {
+      const response = (error as ApiErrorLike).response;
       return {
-        message: error.response.data.message || 'Server error occurred',
-        status: error.response.status
+        message: response?.data?.message || 'Server error occurred',
+        status: response?.status || 500
+      };
+    }
+
+    if (error instanceof Error) {
+      return {
+        message: error.message || 'An unexpected error occurred',
+        status: 500
       };
     }
     
     return {
-      message: error.message || 'An unexpected error occurred',
+      message: 'An unexpected error occurred',
       status: 500
     };
   };
