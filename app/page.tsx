@@ -4,7 +4,11 @@ import SearchBar from '@/app/components/SearchBar';
 import BlogPostCard from '@/app/components/BlogPostCard';
 import Pagination from '@/app/components/Pagination';
 
-export default async function Home({ searchParams }) {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string }>;
+}) {
   const searchParamsAwaited = await searchParams;
   const search = searchParamsAwaited?.search || '';
   const page = Number(searchParamsAwaited?.page) || 1;
